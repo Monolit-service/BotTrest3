@@ -77,10 +77,6 @@ def crypto_invoice_keyboard(pay_url: str, payment_id: int) -> InlineKeyboardMark
     builder = InlineKeyboardBuilder()
     builder.button(text="🪙 Открыть счёт CryptoBot", url=pay_url)
     builder.button(text="✅ Проверить оплату", callback_data=f"check_crypto:{payment_id}")
-    if allow_test_buttons:
-        builder.button(text="🧪 Тест Stars", callback_data=f"test_pay:stars:{plan.id}")
-        if settings.crypto_pay_enabled:
-            builder.button(text="🧪 Тест CryptoBot", callback_data=f"test_pay:crypto:{plan.id}")
     builder.button(text="⬅️ К тарифам", callback_data="show_plans")
     add_main_menu_button(builder)
     builder.adjust(1)
