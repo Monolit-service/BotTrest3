@@ -103,18 +103,6 @@ class Settings:
     crypto_pay_asset: str
     crypto_usdt_per_star: float
     admin_ids: tuple[int, ...]
-    prize_spin_cooldown_hours: int
-    prize_anti_abuse_enabled: bool
-    prize_require_username: bool
-    prize_min_profile_age_hours: int
-    prize_min_paid_payments: int
-    prize_weight_sub_1_day: int
-    prize_weight_discount_5: int
-    prize_weight_discount_10: int
-    prize_weight_discount_25: int
-    prize_weight_sub_30_days: int
-    referral_bonus_days: int
-    prize_access_price_xtr: int
 
     def is_test_payments_enabled_for(self, telegram_id: int | None) -> bool:
         if not self.payment_test_mode:
@@ -173,16 +161,4 @@ def get_settings() -> Settings:
         crypto_pay_asset=_get_optional("CRYPTO_PAY_ASSET", "USDT") or "USDT",
         crypto_usdt_per_star=_get_float("CRYPTO_USDT_PER_STAR", 0.01),
         admin_ids=_get_int_list("ADMIN_IDS", ()),
-        prize_spin_cooldown_hours=_get_int("PRIZE_SPIN_COOLDOWN_HOURS", 24),
-        prize_anti_abuse_enabled=_get_bool("PRIZE_ANTI_ABUSE_ENABLED", True),
-        prize_require_username=_get_bool("PRIZE_REQUIRE_USERNAME", True),
-        prize_min_profile_age_hours=_get_int("PRIZE_MIN_PROFILE_AGE_HOURS", 72),
-        prize_min_paid_payments=_get_int("PRIZE_MIN_PAID_PAYMENTS", 1),
-        prize_weight_sub_1_day=_get_int("PRIZE_WEIGHT_SUB_1_DAY", 40),
-        prize_weight_discount_5=_get_int("PRIZE_WEIGHT_DISCOUNT_5", 30),
-        prize_weight_discount_10=_get_int("PRIZE_WEIGHT_DISCOUNT_10", 18),
-        prize_weight_discount_25=_get_int("PRIZE_WEIGHT_DISCOUNT_25", 9),
-        prize_weight_sub_30_days=_get_int("PRIZE_WEIGHT_SUB_30_DAYS", 3),
-        referral_bonus_days=_get_int("REFERRAL_BONUS_DAYS", 3),
-        prize_access_price_xtr=_get_int("PRIZE_ACCESS_PRICE_XTR", 250),
     )

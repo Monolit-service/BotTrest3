@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from aiogram import Bot
 from aiogram.exceptions import TelegramBadRequest
 
+from app.services.i18n import t
 from app.config import get_settings
 from app.models import ChannelScope
 
@@ -40,7 +41,7 @@ async def create_access_links(bot: Bot, channel_scope: str) -> list[str]:
             creates_join_request=False,
             name=f"paid_sub_{channel_name}",
         )
-        links.append(f"{channel_name}: {invite.invite_link}")
+        links.append(f"{t(channel_name)}: {invite.invite_link}")
     return links
 
 

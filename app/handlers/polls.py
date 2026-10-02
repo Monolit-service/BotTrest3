@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.services.i18n import t, language_context
+
 import asyncio
 import contextlib
 
@@ -211,11 +213,12 @@ async def poll_publish_handler(callback: CallbackQuery, session: AsyncSession, s
     failed_count = 0
     for user in users:
         try:
-            await callback.bot.send_message(
-                chat_id=user.telegram_id,
-                text=format_poll_message(poll, stats),
-                reply_markup=poll_voting_keyboard(poll, selected_option_ids=set(), stats=stats),
-            )
+            with language_context(user.language):
+                await callback.bot.send_message(
+                    chat_id=user.telegram_id,
+                    text=format_poll_message(poll, stats),
+                    reply_markup=poll_voting_keyboard(poll, selected_option_ids=set(), stats=stats),
+                )
             sent_count += 1
         except Exception:
             failed_count += 1
@@ -235,7 +238,7 @@ async def poll_vote_handler(callback: CallbackQuery, session: AsyncSession) -> N
     _, poll_id_raw, option_id_raw = callback.data.split(":", maxsplit=2)
     poll = await get_poll(session, int(poll_id_raw))
     if poll is None:
-        await callback.answer("Опрос не найден", show_alert=True)
+        await callback.answer(t('Опрос не найден'), show_alert=True)
         return
 
     user = await get_or_create_user(
@@ -248,7 +251,7 @@ async def poll_vote_handler(callback: CallbackQuery, session: AsyncSession) -> N
     if poll.status != "active":
         stats = await get_poll_stats(session, poll.id)
         await callback.message.edit_text(format_poll_message(poll, stats))
-        await callback.answer("Голосование уже закрыто", show_alert=True)
+        await callback.answer(t('Голосование уже закрыто'), show_alert=True)
         return
 
     try:
@@ -259,7 +262,7 @@ async def poll_vote_handler(callback: CallbackQuery, session: AsyncSession) -> N
             user=user,
         )
     except ValueError:
-        await callback.answer("Вариант ответа не найден", show_alert=True)
+        await callback.answer(t('Вариант ответа не найден'), show_alert=True)
         return
 
     refreshed_poll = await get_poll(session, poll.id)
@@ -267,7 +270,7 @@ async def poll_vote_handler(callback: CallbackQuery, session: AsyncSession) -> N
         format_poll_message(refreshed_poll, stats),
         reply_markup=poll_voting_keyboard(refreshed_poll, selected_option_ids=selected_option_ids, stats=stats),
     )
-    await callback.answer("Голос учтён")
+    await callback.answer(t('Голос учтён'))
 
 
 @router.callback_query(F.data.startswith("poll_refresh:"))
@@ -275,7 +278,7 @@ async def poll_refresh_handler(callback: CallbackQuery, session: AsyncSession) -
     poll_id = int(callback.data.split(":", maxsplit=1)[1])
     poll = await get_poll(session, poll_id)
     if poll is None:
-        await callback.answer("Опрос не найден", show_alert=True)
+        await callback.answer(t('Опрос не найден'), show_alert=True)
         return
 
     user = await get_or_create_user(
@@ -292,7 +295,7 @@ async def poll_refresh_handler(callback: CallbackQuery, session: AsyncSession) -
         markup = poll_voting_keyboard(poll, selected_option_ids=selected_option_ids, stats=stats)
 
     await callback.message.edit_text(format_poll_message(poll, stats), reply_markup=markup)
-    await callback.answer("Результаты обновлены")
+    await callback.answer(t('Результаты обновлены'))
 
 
 @router.callback_query(F.data.startswith("poll_admin_close:"))

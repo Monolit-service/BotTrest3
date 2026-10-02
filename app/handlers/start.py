@@ -1,3 +1,5 @@
+from app.services.i18n import t, language_context
+
 from aiogram import F, Router
 import re
 from html import escape
@@ -27,8 +29,6 @@ from app.services.question_service import (
     register_question_delivery,
 )
 from app.services.user_service import get_or_create_user
-from app.services.referral_service import attach_referrer_from_start_argument
-from app.services.prize_service import apply_discount_to_price, get_active_discount_award
 from app.models import AnonymousQuestionStatus, User
 from app.utils.text import format_welcome_text
 
@@ -49,16 +49,12 @@ QUESTION_ID_RE = re.compile(r"ID вопроса:\s*(\d+)")
 async def start_handler(message: Message, session: AsyncSession, state: FSMContext) -> None:
     await state.clear()
     user = message.from_user
-    db_user = await get_or_create_user(
+    await get_or_create_user(
         session=session,
         telegram_id=user.id,
         username=user.username,
         full_name=user.full_name,
     )
-    start_argument = None
-    if message.text and " " in message.text:
-        start_argument = message.text.split(" ", maxsplit=1)[1].strip()
-    await attach_referrer_from_start_argument(session, db_user, start_argument)
     text = format_welcome_text(settings.channel_1_name, settings.channel_2_name)
     await message.answer(text, reply_markup=main_menu(is_admin=is_admin_user(user.id)))
 
@@ -77,7 +73,7 @@ async def menu_handler(callback: CallbackQuery, state: FSMContext) -> None:
 async def show_plans_handler(callback: CallbackQuery, session: AsyncSession, state: FSMContext) -> None:
     await state.clear()
     plans = await get_active_plans(session)
-    await callback.message.edit_text("Выбери тариф для доступа в приват:", reply_markup=plans_keyboard(plans))
+    await callback.message.edit_text(t('Выбери тариф для доступа в приват:'), reply_markup=plans_keyboard(plans))
     await callback.answer()
 
 
@@ -87,30 +83,11 @@ async def plan_details_handler(callback: CallbackQuery, session: AsyncSession, s
     plan_id = int(callback.data.split(":", maxsplit=1)[1])
     plan = await get_plan_by_id(session, plan_id)
     if plan is None or not plan.is_active:
-        await callback.answer("Тариф не найден или отключён", show_alert=True)
+        await callback.answer(t('Тариф не найден или отключён'), show_alert=True)
         return
 
-    price_line = f"Цена в Telegram: {plan.price_xtr} ⭐"
-    if callback.from_user:
-        user = await get_or_create_user(
-            session=session,
-            telegram_id=callback.from_user.id,
-            username=callback.from_user.username,
-            full_name=callback.from_user.full_name,
-        )
-        discounted_amount, discount_award = await apply_discount_to_price(session, user.id, plan.price_xtr)
-        if discount_award is not None and discounted_amount != plan.price_xtr:
-            price_line = (
-                f"Цена в Telegram: <s>{plan.price_xtr} ⭐</s> → <b>{discounted_amount} ⭐</b>\n"
-                f"Активный приз: {escape(discount_award.prize_title)}"
-            )
-
     text = (
-        f"<b>{escape(plan.title)}</b>\n\n"
-        f"{escape(plan.description)}\n\n"
-        f"Срок: {plan.duration_days} дней\n"
-        f"{price_line}\n\n"
-        "Выбери способ оплаты:"
+        t('<b>{p0}</b>\n\n{p1}\n\nСрок: {p2} дней\nЦена в Telegram: {p3} ⭐\n\nВыбери способ оплаты:', p0=f'{escape(t(plan.title))}', p1=f'{escape(t(plan.description))}', p2=f'{plan.duration_days}', p3=f'{plan.price_xtr}')
     )
     await callback.message.edit_text(text, reply_markup=plan_payment_keyboard(plan))
     await callback.answer()
@@ -120,8 +97,7 @@ async def plan_details_handler(callback: CallbackQuery, session: AsyncSession, s
 async def donations_handler(callback: CallbackQuery, state: FSMContext) -> None:
     await state.clear()
     await callback.message.edit_text(
-        "Поддержать проект можно звёздами внутри Telegram или через CryptoBot.\n"
-        "После выбора способа бот попросит ввести любую сумму доната.",
+        t('Поддержать проект можно звёздами внутри Telegram или через CryptoBot.\nПосле выбора способа бот попросит ввести любую сумму доната.'),
         reply_markup=donation_methods_keyboard(allow_test_buttons=settings.is_test_payments_enabled_for(callback.from_user.id if callback.from_user else None)),
     )
     await callback.answer()
@@ -131,8 +107,7 @@ async def donations_handler(callback: CallbackQuery, state: FSMContext) -> None:
 async def ask_bold_question_handler(callback: CallbackQuery, state: FSMContext) -> None:
     await state.set_state(AskQuestionStates.waiting_question)
     await callback.message.edit_text(
-        "Я слушаю. Напиши свой вопрос следующим сообщением. Никто - даже я - не узнает, кто автор.\n"
-        "Постарайся спросить что-то действительно интересное.",
+        t('Я слушаю. Напиши свой вопрос следующим сообщением. Никто - даже я - не узнает, кто автор.\nПостарайся спросить что-то действительно интересное.'),
         reply_markup=ask_question_keyboard(),
     )
     await callback.answer()
@@ -147,12 +122,12 @@ async def receive_bold_question(message: Message, session: AsyncSession, state: 
         return
 
     if len(question) < 3:
-        await message.answer("Вопрос слишком короткий. Напиши чуть подробнее.", reply_markup=ask_question_keyboard())
+        await message.answer(t('Вопрос слишком короткий. Напиши чуть подробнее.'), reply_markup=ask_question_keyboard())
         return
 
     if not settings.admin_ids:
         await state.clear()
-        await message.answer("Сейчас приём вопросов временно недоступен.", reply_markup=main_menu(is_admin=is_admin_user(message.from_user.id if message.from_user else None)))
+        await message.answer(t('Сейчас приём вопросов временно недоступен.'), reply_markup=main_menu(is_admin=is_admin_user(message.from_user.id if message.from_user else None)))
         return
 
     user = await get_or_create_user(
@@ -198,12 +173,12 @@ async def receive_bold_question(message: Message, session: AsyncSession, state: 
     await state.clear()
     if sent_count:
         await message.answer(
-            "Принято. Твой вопрос улетел ко мне в сейф. Если он меня зацепит - отвечу на него лично или разберу в основном канале. Жди.",
+            t('Принято. Твой вопрос улетел ко мне в сейф. Если он меня зацепит - отвечу на него лично или разберу в основном канале. Жди.'),
             reply_markup=main_menu(is_admin=is_admin_user(message.from_user.id if message.from_user else None)),
         )
     else:
         await message.answer(
-            "Не удалось доставить вопрос администраторам. Попробуй позже.",
+            t('Не удалось доставить вопрос администраторам. Попробуй позже.'),
             reply_markup=main_menu(is_admin=is_admin_user(message.from_user.id if message.from_user else None)),
         )
 
@@ -294,7 +269,7 @@ async def admin_answer_question_text(message: Message, session: AsyncSession, st
         return
 
     answer_text = (
-        "💌 <b>Ответ на твой смелый вопрос</b>\n\n"
+        t("💌 <b>Ответ на твой смелый вопрос</b>\n\n", language=author.language) +
         f"{escape(answer_text_raw)}"
     )
 
@@ -362,7 +337,7 @@ async def admin_answer_to_question(message: Message, session: AsyncSession) -> N
         return
 
     answer_text = (
-        "💌 <b>Ответ на твой смелый вопрос</b>\n\n"
+        t("💌 <b>Ответ на твой смелый вопрос</b>\n\n", language=author.language) +
         f"{escape(answer_text_raw)}"
     )
     try:
@@ -393,6 +368,6 @@ async def admin_answer_question_non_text(message: Message, state: FSMContext) ->
 @router.message(AskQuestionStates.waiting_question)
 async def receive_non_text_bold_question(message: Message) -> None:
     await message.answer(
-        "Пришли вопрос обычным текстовым сообщением.",
+        t('Пришли вопрос обычным текстовым сообщением.'),
         reply_markup=ask_question_keyboard(),
     )

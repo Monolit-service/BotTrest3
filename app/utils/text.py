@@ -1,3 +1,5 @@
+from app.services.i18n import t, language_context
+
 from html import escape
 
 from app.models import Plan, Poll, PollStatus, Subscription, SubscriptionStatus, User
@@ -8,30 +10,16 @@ from app.services.poll_service import PollStats
 def format_subscription_line(subscription: Subscription, plan: Plan) -> str:
     status_emoji = "✅" if subscription.status == SubscriptionStatus.ACTIVE else "⛔"
     ends_at = subscription.ends_at.strftime("%Y-%m-%d %H:%M UTC")
-    return f"{status_emoji} {plan.title}\nДо: {ends_at}"
+    return t('{p0} {p1}\nДо: {p2}', p0=f'{status_emoji}', p1=f'{t(plan.title)}', p2=f'{ends_at}')
 
 
 def format_welcome_text(channel_1_name: str, channel_2_name: str) -> str:
     return (
-        "Привет👋 Рад, что ты здесь🙂‍↕️\n\n"
-        "Это пространство без цензуры, фильтров и лишних глаз. "
-        "Твоя возможность узнать меня получше🤫\n\n"
-        "Правила просты:\n"
-        "• Хочешь больше горячего контента? Тебе в Приват.\n"
-        "• Есть ко мне личный вопрос? Пиши анонимно.\n"
-        "• Хочешь сказать «спасибо»? Я не откажусь от доната.\n\n"
-        "С чего начнем наше знакомство?"
+        t('Привет👋 Рад, что ты здесь🙂\u200d↕️\n\nЭто пространство без цензуры, фильтров и лишних глаз. Твоя возможность узнать меня получше🤫\n\nПравила просты:\n• Хочешь больше горячего контента? Тебе в Приват.\n• Есть ко мне личный вопрос? Пиши анонимно.\n• Хочешь сказать «спасибо»? Я не откажусь от доната.\n\nС чего начнем наше знакомство?')
     )
 
 
-def format_profile_text(
-    user: User | None,
-    subscription_rows: list[tuple[Subscription, Plan]],
-    *,
-    referral_link: str | None = None,
-    referral_count: int = 0,
-    referral_bonus_days: int = 0,
-) -> str:
+def format_profile_text(user: User | None, subscription_rows: list[tuple[Subscription, Plan]]) -> str:
     username = f"@{user.username}" if user and user.username else "—"
     full_name = user.full_name if user and user.full_name else "—"
     telegram_id = user.telegram_id if user else "—"
@@ -43,23 +31,18 @@ def format_profile_text(
     ]
 
     text = [
-        "<b>Мой профиль</b>",
+        t('<b>Мой профиль</b>'),
         f"ID: <code>{telegram_id}</code>",
         f"Username: {username}",
-        f"Имя: {full_name}",
-        f"Активных подписок: {len(active_rows)}",
-        f"Приглашено по ссылке: {referral_count}",
-        f"Бонусных дней по рефералке: {referral_bonus_days}",
+        t('Имя: {p0}', p0=f'{full_name}'),
+        t('Активных подписок: {p0}', p0=f'{len(active_rows)}'),
     ]
 
-    if referral_link:
-        text.append(f"\n<b>Твоя реферальная ссылка</b>\n<code>{escape(referral_link)}</code>")
-
     if not subscription_rows:
-        text.append("\nПодписок пока нет.")
+        text.append(t('\nПодписок пока нет.'))
         return "\n".join(text)
 
-    text.append("\n<b>Подписки</b>")
+    text.append(t('\n<b>Подписки</b>'))
     for subscription, plan in subscription_rows:
         text.append(format_subscription_line(subscription, plan))
 
@@ -82,11 +65,11 @@ def format_poll_preview(question: str, options: list[str], allows_multiple_answe
 
 def format_poll_message(poll: Poll, stats: PollStats) -> str:
     is_closed = poll.status == PollStatus.CLOSED
-    header = "📣 <b>Анонимный опрос</b>"
+    header = t('📣 <b>Анонимный опрос</b>')
     if is_closed:
-        header = "📣 <b>Анонимный опрос завершён</b>"
+        header = t('📣 <b>Анонимный опрос завершён</b>')
 
-    lines = [header, "", escape(poll.question), "", "<b>Результаты</b>"]
+    lines = [header, "", escape(poll.question), "", t('<b>Результаты</b>')]
     sorted_options = sorted(poll.options, key=lambda item: item.position)
     total = stats.total_votes
     for option in sorted_options:
@@ -97,12 +80,12 @@ def format_poll_message(poll: Poll, stats: PollStats) -> str:
         lines.append(f"• {escape(option.text)} — {count} ({percent}%)")
 
     lines.append("")
-    lines.append(f"Участников: {stats.total_voters}")
+    lines.append(t('Участников: {p0}', p0=f'{stats.total_voters}'))
     if is_closed:
-        lines.append("Голосование закрыто.")
+        lines.append(t('Голосование закрыто.'))
     else:
-        action_text = "Можно выбрать несколько вариантов." if poll.allows_multiple_answers else "Можно выбрать только один вариант."
-        lines.append(f"Нажми на кнопку ниже, чтобы проголосовать. {action_text}")
+        action_text = t('Можно выбрать несколько вариантов.') if poll.allows_multiple_answers else t('Можно выбрать только один вариант.')
+        lines.append(t('Нажми на кнопку ниже, чтобы проголосовать. {p0}', p0=f'{action_text}'))
 
     return "\n".join(lines)
 
@@ -122,29 +105,3 @@ def format_admin_panel_text(stats: AdminStats) -> str:
         f"Активных опросов: <b>{stats.active_polls}</b>\n\n"
         "Через эту панель можно скачать актуальный бэкап проекта."
     )
-
-
-def format_referral_program_text(*, referral_link: str | None = None, referral_count: int = 0, referral_bonus_days: int = 0) -> str:
-    lines = [
-        "<b>👥 Реферальная программа</b>",
-        "",
-        "Приглашай друзей по своей личной ссылке и получай бонусы.",
-        "За каждого приглашённого пользователя, который оплатит подписку впервые, тебе начисляется <b>+3 дня подписки</b>.",
-        "",
-        f"Приглашено пользователей: <b>{referral_count}</b>",
-        f"Начислено бонусных дней: <b>{referral_bonus_days}</b>",
-    ]
-
-    if referral_link:
-        lines.extend(["", "<b>Твоя реферальная ссылка</b>", f"<code>{escape(referral_link)}</code>"] )
-    else:
-        lines.extend(["", "Реферальная ссылка появится после получения username бота."])
-
-    lines.extend([
-        "",
-        "<b>Важно:</b>",
-        "• засчитывается только первый успешный платёж приглашённого пользователя;",
-        "• самого себя пригласить нельзя;",
-        "• уже привязанного пользователя перепривязать нельзя.",
-    ])
-    return "\n".join(lines)
